@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import math
 from matplotlib.patches import Circle
 import random
+import matplotlib.patches as patches
 
 
 def check_vec_angle(v1: Vector2d, v2: Vector2d):
@@ -41,41 +42,63 @@ class APF_Improved(APF):
         """
         rep = Vector2d(0, 0)  # 所有障碍物总斥力
         for obstacle in self.obstacles:
-            # obstacle = Vector2d(0, 0)
             obs_to_rob = self.current_pos - obstacle
             rob_to_goal = self.goal - self.current_pos
             if (obs_to_rob.length > self.rr):  # 超出障碍物斥力影响范围
                 pass
             else:
                 rep_1 = Vector2d(obs_to_rob.direction[0], obs_to_rob.direction[1]) * self.k_rep * (
-                        1.0 / obs_to_rob.length - 1.0 / self.rr) / (obs_to_rob.length ** 2) * (rob_to_goal.length ** 2)
-                rep_2 = Vector2d(rob_to_goal.direction[0], rob_to_goal.direction[1]) * self.k_rep * ((1.0 / obs_to_rob.length - 1.0 / self.rr) ** 2) * rob_to_goal.length
-                rep +=(rep_1+rep_2)
+                    1.0 / obs_to_rob.length - 1.0 / self.rr) / (obs_to_rob.length ** 2) * (rob_to_goal.length ** 2)
+                rep_2 = Vector2d(rob_to_goal.direction[0], rob_to_goal.direction[1]) * self.k_rep * (
+                    (1.0 / obs_to_rob.length - 1.0 / self.rr) ** 2) * rob_to_goal.length
+                rep += (rep_1 + rep_2)
         return rep
 
 
 if __name__ == '__main__':
     # 相关参数设置
     k_att, k_rep = 1.0, 0.8
-    rr = 3
-    step_size, max_iters, goal_threashold = .2, 500, .2  # 步长0.5寻路1000次用时4.37s, 步长0.1寻路1000次用时21s
+    rr = 0.1
+    # 步长0.5寻路1000次用时4.37s, 步长0.1寻路1000次用时21s
+    step_size, max_iters, goal_threashold = .2, 5, .2
     step_size_ = 2
 
     # 设置、绘制起点终点
-    start, goal = (0, 0), (15, 15)
+    start, goal = (1, 1.5), (3.0, 2.5)
     is_plot = True
     if is_plot:
-        fig = plt.figure(figsize=(7, 7))
+        fig = plt.figure(figsize=(8, 6))
         subplot = fig.add_subplot(111)
         subplot.set_xlabel('X-distance: m')
         subplot.set_ylabel('Y-distance: m')
         subplot.plot(start[0], start[1], '*r')
         subplot.plot(goal[0], goal[1], '*r')
+
+        # 车道绘制
+    stright_path_length = 2
+    path_width = 0.4
+    subplot.add_patch(
+        patches.Rectangle(
+            (1, 1.3),   # (x,y)
+            stright_path_length,
+            path_width,
+        )
+    )
+    subplot.add_patch(
+        patches.Rectangle(
+            (1, 2.3),   # (x,y)
+            stright_path_length,
+            path_width,
+        )
+    )
+
+    left_wedge = patches.Wedge((1, 2), .7, 90, -90, width=path_width)
+    right_wedge = patches.Wedge((3, 2), .7, -90, 90, width=path_width)
+    # subplot.add_patch(left_wedge)
+    subplot.add_patch(right_wedge)
     # 障碍物设置及绘制
-    obs = [[1, 4], [2, 4], [3, 3], [6, 1], [6, 7], [10, 6], [11, 12], [14, 14]]
+    obs = [[1.5, 2.5], [2.5, 1.5]]
     print('obstacles: {0}'.format(obs))
-    for i in range(0):
-        obs.append([random.uniform(2, goal[1] - 1), random.uniform(2, goal[1] - 1)])
 
     if is_plot:
         for OB in obs:
@@ -86,10 +109,8 @@ if __name__ == '__main__':
     # for i in range(1000):
 
     # path plan
-    if is_plot:
-        apf = APF_Improved(start, goal, obs, k_att, k_rep, rr, step_size, max_iters, goal_threashold, is_plot)
-    else:
-        apf = APF_Improved(start, goal, obs, k_att, k_rep, rr, step_size, max_iters, goal_threashold, is_plot)
+    apf = APF_Improved(start, goal, obs, k_att, k_rep, rr,
+                       step_size, max_iters, goal_threashold, is_plot)
     apf.path_plan()
     if apf.is_path_plan_success:
         path = apf.path
@@ -104,7 +125,8 @@ if __name__ == '__main__':
         print('planed path points:{}'.format(path_))
         print('path plan success')
         if is_plot:
-            px, py = [K[0] for K in path_], [K[1] for K in path_]  # 路径点x坐标列表, y坐标列表
+            px, py = [K[0] for K in path_], [K[1]
+                                             for K in path_]  # 路径点x坐标列表, y坐标列表
             subplot.plot(px, py, '^k')
             plt.show()
     else:
