@@ -58,13 +58,13 @@ class APF_Improved(APF):
 if __name__ == '__main__':
     # 相关参数设置
     k_att, k_rep = 1.0, 0.8
-    rr = 0.1
+    rr = 0.3
     # 步长0.5寻路1000次用时4.37s, 步长0.1寻路1000次用时21s
-    step_size, max_iters, goal_threashold = .2, 5, .2
+    step_size, max_iters, goal_threashold = .2, 50, .2
     step_size_ = 2
 
     # 设置、绘制起点终点
-    start, goal = (1, 1.5), (3.0, 2.5)
+    start, goal = (1, 1.5), (2.5, 1.5)
     is_plot = True
     if is_plot:
         fig = plt.figure(figsize=(8, 6))
@@ -97,7 +97,7 @@ if __name__ == '__main__':
     # subplot.add_patch(left_wedge)
     subplot.add_patch(right_wedge)
     # 障碍物设置及绘制
-    obs = [[1.5, 2.5], [2.5, 1.5]]
+    obs = [[1.5, 1.5], [2.5, 1.5]]
     print('obstacles: {0}'.format(obs))
 
     if is_plot:
@@ -114,19 +114,19 @@ if __name__ == '__main__':
     apf.path_plan()
     if apf.is_path_plan_success:
         path = apf.path
-        path_ = []
-        i = int(step_size_ / step_size)
-        while (i < len(path)):
-            path_.append(path[i])
-            i += int(step_size_ / step_size)
+        # path_ = []
+        # i = int(step_size_ / step_size)
+        # while (i < len(path)):
+        #     path_.append(path[i])
+        #     i += int(step_size_ / step_size)
 
-        if path_[-1] != path[-1]:  # 添加最后一个点
-            path_.append(path[-1])
-        print('planed path points:{}'.format(path_))
+        # if path_[-1] != path[-1]:  # 添加最后一个点
+        #     path_.append(path[-1])
+        # print('planed path points:{}'.format(path_))
         print('path plan success')
         if is_plot:
-            px, py = [K[0] for K in path_], [K[1]
-                                             for K in path_]  # 路径点x坐标列表, y坐标列表
+            px, py = [K[0] for K in path], [K[1]
+                                            for K in path]  # 路径点x坐标列表, y坐标列表
             subplot.plot(px, py, '^k')
             plt.show()
     else:

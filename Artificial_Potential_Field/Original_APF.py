@@ -33,12 +33,10 @@ class Vector2d():
             deltaX, deltaY = self.deltaX, self.deltaY
             self.deltaX = deltaY[0] - deltaX[0]
             self.deltaY = deltaY[1] - deltaX[1]
-        self.length = math.sqrt(self.deltaX ** 2 + self.deltaY ** 2) * 1.0
-        if self.length > 0:
-            self.direction = [self.deltaX /
-                              self.length, self.deltaY / self.length]
-        else:
-            self.direction = None
+
+        self.length = math.sqrt(self.deltaX ** 2 + self.deltaY ** 2)
+        self.direction = [self.deltaX / self.length,
+                          self.deltaY / self.length] if self.length > 0 else None
 
     def __add__(self, other):
         vec = Vector2d(self.deltaX, self.deltaY)
@@ -140,50 +138,53 @@ class APF():
             t_vec = self.current_pos - obstacle
             # print('current_pos:{} to obstacle: {} vector:{}'.format(
             # self.current_pos, obstacle, t_vec))
-            # if self.point_in_bound(t_vec):
             # 超出障碍物斥力影响范围
             if (t_vec.length > self.rr):
                 pass
             else:
                 # 方向由障碍物指向机器人
-                obstacle_potential = Vector2d(t_vec.direction[0], t_vec.direction[1]) * 0.5 * (
-                    1.0 / t_vec.length - 1.0 / self.rr) / (t_vec.length ** 2)
-                print('obstacle potential is {}'.format(obstacle_potential))
+                obstacle_potential = Vector2d(t_vec.direction[0], t_vec.direction[1]) * 0.1 * (
+                    1.0 / t_vec.length - VEHICLE_WIDTH / 2 - self.rr) / (t_vec.length ** 2)
+                print('obstacle:{},potential: {}'.format(
+                    obstacle, obstacle_potential))
                 rep += obstacle_potential
 
-        # 道路边界作为斥力加入计算
-        # road = [[1.0, 1.3], [3.0, 1.7], [1.0, 1.7], [3.0, 1.7]]
-        # for i in np.arange(1.0, 3.0, self.step_size):
-        #     # print('i is :{}'.format(i))
-        #     # TODO 撒点排查当前点
-        #     left_bound = Vector2d(i, 1.7)
-        #     right_bound = Vector2d(i, 1.3)
-
-        #     lb_vector = left_bound - self.current_pos
-        #     rb_vector = right_bound - self.current_pos
-
-        #     left_potential = Vector2d(lb_vector.direction[0], lb_vector.direction[1]) * \
-        #         0.5 * (1 / (lb_vector.length - VEHICLE_WIDTH / 2)) ** 2
-        #     right_potential = Vector2d(rb_vector.direction[0], rb_vector.direction[1]) * \
-        #         0.5 * (1 / (rb_vector.length - VEHICLE_WIDTH / 2)) ** 2
-
-        #     # print('left point : {} ,left_potential: {}'.format(i, left_potential))
-        #     # print('right point :{} right_potential:{}'.format(i, right_potential))
-
-        #     rep += left_potential
-        #     rep += right_potential
-
-        # else:
-        #     # 方向指向沿目标点的道路方向
-        #     rep += Vector2d(new_vec.direction[0], new_vec.direction[1]) * self.k_rep * (
-        #         1.0 / new_vec.length - 1.0 / self.rr) / (new_vec.length ** 2)
-
-        # 道路边界斥力势场数学模型
-        # if self.in_bound():
-            # rep += Vector2d(diff_vec.direction[0], diff_vec.direction[1]) * \
-            # self.k_rep * (1 / (diff_vec.length - 0.21 / 2)) ** 2
-
         return rep
+
+    def road(self):
+        road_rep = Vector2d(0, 0)
+        # 道路边界作为斥力加入计算
+        kl = 0.5
+        kr = 0.5  # 道路左右边界斥力系数
+        road = [[1.0, 1.3], [3.0, 1.7], [1.0, 1.7], [3.0, 1.7]]
+        # print('i is :{}'.format(i))
+        # TODO 撒点排查当前点
+        left_bound = Vector2d(self.current_pos.deltaX, LANE_WIDTH / 2)
+        right_bound = Vector2d(self.current_pos.deltaX, - LANE_WIDTH / 2)
+
+        lb_vector = left_bound - self.current_pos
+        rb_vector = self.current_pos - right_bound
+        print('left_vector:{}'.format(lb_vector))
+        print('right_vector:{}'.format(rb_vector))
+
+        f_l = Vector2d(lb_vector.direction[0], lb_vector.direction[1]) * kl * \
+            (1/(lb_vector.length - VEHICLE_WIDTH/2)*(1/self.current_pos.deltaY**2))
+
+        f_r = Vector2d(rb_vector.direction[0], rb_vector.direction[1]) * kr * \
+            (1/(rb_vector.length - VEHICLE_WIDTH/2)*(1/self.current_pos.deltaY**2))
+
+        # left_potential = Vector2d(lb_vector.direction[0], lb_vector.direction[1]) * \
+        #     0.5 * (1 / (lb_vector.length - VEHICLE_WIDTH / 2)) ** 2
+
+        # right_potential = Vector2d(rb_vector.direction[0], rb_vector.direction[1]) * \
+        #     0.5 * (1 / (rb_vector.length - VEHICLE_WIDTH / 2)) ** 2
+
+        print('new point:{}'.format(self.current_pos))
+        print('left_force:{},'.format(f_l))
+        print('right_force:{}'.format(f_r))
+        road_rep += f_l
+        road_rep += f_r
+        return road_rep
 
     def path_plan(self):
         while (self.iters < self.max_iters and (self.current_pos - self.goal).length > self.goal_threashold):
@@ -191,12 +192,14 @@ class APF():
             print('attractive : {}'.format(attractive))
             repulsion = self.repulsion()
             print('repulsion: {}'.format(repulsion))
-            f_vec = self.attractive() + self.repulsion()
+            road_rep = self.road()
+            f_vec = attractive + repulsion + road_rep
+
             print('combined force:{}'.format(f_vec))
             # 下一个点的选择
             self.current_pos += Vector2d(
                 f_vec.direction[0], f_vec.direction[1]) * self.step_size
-            print('current_position:{}'.format(self.current_pos))
+            # print('current_position:{}'.format(self.current_pos))
             # exit(0)
             self.iters += 1
             self.path.append(
@@ -233,9 +236,9 @@ signal.signal(signal.SIGTERM, handler)
 
 if __name__ == '__main__':
     # 相关参数设置
-    k_att, k_rep = 1.0, 100.0
+    k_att, k_rep = 5.0, 100.0
     rr = 0.1
-    step_size, max_iters, goal_threashold = 0.05, 100, 0.05
+    step_size, max_iters, goal_threashold = 0.05, 100, 0.1
     # 步长0.5寻路1000次用时4.37s, 步长0.1寻路1000次用时21s
     step_size_ = 2
 
@@ -272,13 +275,13 @@ if __name__ == '__main__':
 
     left_wedge = patches.Wedge((1, 2), .7, 90, -90, width=path_width)
     right_wedge = patches.Wedge((3, 2), .7, -90, 90, width=path_width)
-    # subplot.add_patch(left_wedge)
+    subplot.add_patch(left_wedge)
     subplot.add_patch(right_wedge)
 
     subplot.grid(True, linestyle="-.", color="r", linewidth=0.1)
 
     # 障碍物设置及绘制
-    obs = [[1.5, 1.5]]
+    obs = []
     print('obstacles: {0}'.format(obs))
 
     if is_plot:
@@ -295,7 +298,7 @@ if __name__ == '__main__':
     apf = APF(start, goal, obs, k_att, k_rep, rr, step_size,
               max_iters, goal_threashold, is_plot)
     apf.path_plan()
-    apf.plot()
+    # apf.plot()
     # plt.show()
     if apf.is_path_plan_success:
         path = apf.path
